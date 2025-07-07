@@ -23,6 +23,7 @@ def create_parser() -> argparse.ArgumentParser:
     add_parser.add_argument('--netuid', type=int, required=True, help='Network/subnet ID')
     add_parser.add_argument('--hotkey', type=str, required=True, help='Hotkey address')
     add_parser.add_argument('--amount', type=float, help='Amount to stake')
+    add_parser.add_argument('--tolerance', type=float, default=0.05, help='Tolerance for stake')
     
     # Remove stake command
     remove_parser = subparsers.add_parser('removestake', help='Remove stake from a subnet')
@@ -30,6 +31,7 @@ def create_parser() -> argparse.ArgumentParser:
     remove_parser.add_argument('--hotkey', type=str, required=True, help='Hotkey address')
     remove_parser.add_argument('--amount', type=float, default=0, help='Amount to unstake')
     remove_parser.add_argument('--all', action='store_true', help='Remove all staked balance')
+    remove_parser.add_argument('--tolerance', type=float, default=0.05, help='Tolerance for stake')
     
     # Swap stake command
     swap_parser = subparsers.add_parser('swapstake', help='Swap stake between subnets')
@@ -108,12 +110,14 @@ def main():
                 netuid=args.netuid,
                 hotkey=args.hotkey,
                 amount=Balance.from_tao(args.amount),
+                tolerance=args.tolerance,
             )
         elif args.command == 'removestake':
             ron_proxy.remove_stake(
                 netuid=args.netuid,
                 hotkey=args.hotkey,
                 amount=Balance.from_tao(args.amount, netuid=args.netuid),
+                tolerance=args.tolerance,
                 all=args.all,
             )
         elif args.command == 'swapstake':
