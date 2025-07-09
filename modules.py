@@ -61,7 +61,7 @@ class RonProxy:
                 'amount_staked': amount.rao,
             }
         )
-        is_success, error_message = self._do_proxy_call(call)
+        is_success, error_message = self._do_proxy_call(call, 'Staking')
         if is_success:
             print(f"Stake added successfully")
         else:
@@ -112,7 +112,7 @@ class RonProxy:
                 'amount_unstaked': amount.rao - 1,
             }
         )
-        is_success, error_message = self._do_proxy_call(call)
+        is_success, error_message = self._do_proxy_call(call, 'Staking')
         if is_success:
             print(f"Stake removed successfully")
         else:
@@ -165,7 +165,7 @@ class RonProxy:
                 'alpha_amount': amount.rao,
             }
         )
-        is_success, error_message = self._do_proxy_call(call)
+        is_success, error_message = self._do_proxy_call(call, 'Staking')
         if is_success:
             print(f"Stake swapped successfully")
         else:
@@ -199,20 +199,20 @@ class RonProxy:
                 'hotkey': hotkey,
             }
         )
-        is_success, error_message = self._do_proxy_call(call)
+        is_success, error_message = self._do_proxy_call(call, 'Registration')
         if is_success:
             print(f"Register successfully")
         else:
             print(f"Error: {error_message}")
 
 
-    def _do_proxy_call(self, call) -> tuple[bool, str]:
+    def _do_proxy_call(self, call, proxy_type) -> tuple[bool, str]:
         proxy_call = self.substrate.compose_call(
             call_module='Proxy',
             call_function='proxy',
             call_params={
                 'real': self.delegator,
-                'force_proxy_type': 'Staking',
+                'force_proxy_type': proxy_type,
                 'call': call,
             }
         )
