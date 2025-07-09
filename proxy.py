@@ -39,6 +39,11 @@ def create_parser() -> argparse.ArgumentParser:
     swap_parser.add_argument('--amount', type=float, default=0, help='Amount to swap')
     swap_parser.add_argument('--all', action='store_true', help='Swap all available balance')
     
+    # Burned register command
+    register_parser = subparsers.add_parser('register', help='Burned register')
+    register_parser.add_argument('--netuid', type=int, required=True, help='Subnet ID')
+    register_parser.add_argument('--hotkey', type=str, required=True, help='Hotkey address')
+    
     return parser
 
 
@@ -55,6 +60,14 @@ def validate_args(args: argparse.Namespace) -> bool:
             return False
         if args.amount and args.all:
             print("Error: Cannot specify both --amount and --all")
+            return False
+        
+    elif args.command == 'register':
+        if not args.netuid:
+            print("Error: Must specify --netuid")
+            return False
+        if not args.hotkey:
+            print("Error: Must specify --hotkey")
             return False
     
     return True
@@ -123,6 +136,11 @@ def main():
                 dest_netuid=getattr(args, 'dest_netuid'),
                 amount=Balance.from_tao(args.amount, netuid=getattr(args, 'origin_netuid')),
                 all=args.all,
+            )
+        elif args.command == 'register':
+            ron_proxy.burned_register(
+                netuid=args.netuid,
+                hotkey=args.hotkey,
             )
     
     except Exception as e:

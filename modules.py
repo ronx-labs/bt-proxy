@@ -170,6 +170,40 @@ class RonProxy:
             print(f"Stake swapped successfully")
         else:
             print(f"Error: {error_message}")
+            
+            
+    def burned_register(self, hotkey: str, netuid: int) -> None:
+        """
+        Do burned register.
+        
+        Args:
+            hotkey: Hotkey address
+            netuid: Subnet ID
+        """
+        balance = self.subtensor.get_balance(
+            address=self.delegator,
+        )
+        print(f"Current balance: {balance}")
+        
+        confirm = input(f"Do you really want to register? (y/n)")
+        if confirm == "y":
+            pass
+        else:
+            return
+        
+        call = self.substrate.compose_call(
+            call_module='SubtensorModule',
+            call_function='burned_register',
+            call_params={
+                'netuid': netuid,
+                'hotkey': hotkey,
+            }
+        )
+        is_success, error_message = self._do_proxy_call(call)
+        if is_success:
+            print(f"Register successfully")
+        else:
+            print(f"Error: {error_message}")
 
 
     def _do_proxy_call(self, call) -> tuple[bool, str]:
