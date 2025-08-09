@@ -252,6 +252,89 @@ class RonProxy:
         else:
             print(f"Error: {error_message}")
 
+    def transfer(self, destination: str, amount: Balance) -> None:
+        """
+        Transfer balance between hotkeys.
+        
+        Args:
+            destination: Destination coldkey address
+            amount: Amount to transfer
+        """
+        balance = self.subtensor.get_balance(
+            address=self.delegator,
+        )
+        print(f"Current balance: {balance}")
+        
+        confirm = input(f"Do you really want to transfer {amount}? (y/n)")
+        if confirm == "y":
+            pass
+        else:
+            return
+        
+        call = self.substrate.compose_call(
+            call_module='Balances',
+            call_function='transfer_keep_alive',
+            call_params={
+                'dest': destination,
+                'value': amount.rao,
+            }
+        )
+
+        is_success, error_message = self._do_proxy_call(call, 'Transfer')
+        if is_success:
+            print(f"Transfer successfully")
+        else:
+            print(f"Error: {error_message}")
+
+    def transfer_stake(self, netuid: int, hotkey: str, destination: str, amount: Balance, all: bool = False) -> None:
+        """
+        Transfer stake between hotkeys.
+        
+        Args:
+            netuid: Subnet ID
+            destination: Destination coldkey address
+            amount: Amount to transfer
+        """
+        balance = self.subtensor.get_stake(
+            coldkey_ss58=self.delegator,
+            hotkey_ss58=hotkey,
+            netuid=netuid,
+        )
+        print(f"Current stake: {balance}")
+
+        if all:
+            confirm = input("Do you really want to transfer all available stake? (y/n)")
+            if confirm == "y":
+                amount = balance
+            else:
+                return
+        else:
+            confirm = input(f"Do you really want to transfer {amount}? (y/n)")
+            if confirm == "y":
+                pass
+            else:
+                return
+
+        if amount.rao > balance.rao:
+            print(f"Error: Amount to transfer is greater than current stake")
+            return
+
+        call = self.substrate.compose_call(
+            call_module='SubtensorModule',
+            call_function='transfer_stake',
+            call_params={
+                'destination_coldkey': destination,
+                'hotkey': hotkey,
+                'origin_netuid': netuid,
+                'destination_netuid': netuid,
+                'alpha_amount': amount.rao,
+            }
+        )
+        is_success, error_message = self._do_proxy_call(call, 'Transfer')
+        if is_success:
+            print(f"Stake transferred successfully")
+        else:
+            print(f"Error: {error_message}")
 
     def _do_proxy_call(self, call, proxy_type) -> tuple[bool, str]:
         proxy_call = self.substrate.compose_call(

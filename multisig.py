@@ -81,16 +81,17 @@ class MultisigProposal:
         
         Args:
             proxy_address: Address to add as proxy
-            proxy_type: Type of proxy ('staking' or 'registration')
+            proxy_type: Type of proxy ('staking' or 'registration' or 'transfer')
         """
         # Map proxy type string to proper case
         proxy_type_mapping = {
             'staking': 'Staking',
-            'registration': 'Registration'
+            'registration': 'Registration',
+            'transfer': 'Transfer'
         }
         
         if proxy_type.lower() not in proxy_type_mapping:
-            print(f"Error: Invalid proxy type. Must be 'staking' or 'registration'")
+            print(f"Error: Invalid proxy type. Must be 'staking' or 'registration' or 'transfer'")
             return
             
         formatted_proxy_type = proxy_type_mapping[proxy_type.lower()]
@@ -225,10 +226,10 @@ def get_user_input():
             print(f"Proxy address set to your own address: {proxy_address}")
         
         while True:
-            proxy_type = input("Enter proxy type (staking/registration): ").strip().lower()
-            if proxy_type in ['staking', 'registration']:
+            proxy_type = input("Enter proxy type (staking/registration/transfer): ").strip().lower()
+            if proxy_type in ['staking', 'registration', 'transfer']:
                 break
-            print("Invalid proxy type. Please enter 'staking' or 'registration'.")
+            print("Invalid proxy type. Please enter 'staking' or 'registration' or 'transfer'.")
         
         return action_type, proxy_address, proxy_type
 

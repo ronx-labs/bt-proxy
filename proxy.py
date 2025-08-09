@@ -45,6 +45,19 @@ def create_parser() -> argparse.ArgumentParser:
     register_parser = subparsers.add_parser('register', help='Burned register')
     register_parser.add_argument('--netuid', type=int, required=True, help='Subnet ID')
     register_parser.add_argument('--hotkey', type=str, required=True, help='Hotkey address')
+
+    # Balance transfer command
+    transfer_parser = subparsers.add_parser('transfer', help='Transfer balance between hotkeys')
+    transfer_parser.add_argument('--destination', type=str, required=True, help='Destination coldkey address')
+    transfer_parser.add_argument('--amount', type=float, default=0, help='Amount to transfer')
+
+    # Stake transfer command
+    transfer_stake_parser = subparsers.add_parser('transferstake', help='Transfer stake between hotkeys')
+    transfer_stake_parser.add_argument('--netuid', type=int, required=True, help='Subnet ID')
+    transfer_stake_parser.add_argument('--hotkey', type=str, required=True, help='Hotkey address')
+    transfer_stake_parser.add_argument('--destination', type=str, required=True, help='Destination coldkey address')
+    transfer_stake_parser.add_argument('--amount', type=float, default=0, help='Amount to transfer')
+    transfer_stake_parser.add_argument('--all', action='store_true', help='Swap all available balance')
     
     return parser
 
@@ -65,6 +78,31 @@ def validate_args(args: argparse.Namespace) -> bool:
             return False
         
     elif args.command == 'register':
+        if not args.netuid:
+            print("Error: Must specify --netuid")
+            return False
+        if not args.hotkey:
+            print("Error: Must specify --hotkey")
+            return False
+
+    elif args.command == 'transfer':
+        if not args.amount:
+            print("Error: Must specify --amount")
+            return False
+        if not args.destination:
+            print("Error: Must specify --destination")
+            return False
+
+    elif args.command == 'transferstake':
+        if not args.amount and not args.all:
+            print("Error: Must specify either --amount or --all")
+            return False
+        if args.amount and args.all:
+            print("Error: Cannot specify both --amount and --all")
+            return False
+        if not args.destination:
+            print("Error: Must specify --destination")
+            return False
         if not args.netuid:
             print("Error: Must specify --netuid")
             return False
@@ -145,6 +183,19 @@ def main():
             ron_proxy.burned_register(
                 netuid=args.netuid,
                 hotkey=args.hotkey,
+            )
+        elif args.command == 'transfer':
+            ron_proxy.transfer(
+                destination=args.destination,
+                amount=Balance.from_tao(args.amount),
+            )
+        elif args.command == 'transferstake':
+            ron_proxy.transfer_stake(
+                netuid=args.netuid,
+                hotkey=args.hotkey,
+                destination=args.destination,
+                amount=Balance.from_tao(args.amount),
+                all=args.all,
             )
     
     except Exception as e:
