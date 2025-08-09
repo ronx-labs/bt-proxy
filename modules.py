@@ -1,5 +1,6 @@
 import bittensor as bt
 from substrateinterface import SubstrateInterface
+from substrateinterface.exceptions import SubstrateRequestException
 from typing import Optional, cast
 from bittensor.utils.balance import Balance, FixedPoint, fixed_to_float
 
@@ -32,7 +33,7 @@ class RonProxy:
         )
 
 
-    def add_stake(self, netuid: int, hotkey: str, amount: Balance) -> None:
+    def add_stake(self, netuid: int, hotkey: str, amount: Balance, tolerance: float) -> None:
         """
         Add stake to a subnet.
         
@@ -40,10 +41,14 @@ class RonProxy:
             netuid: Network/subnet ID
             hotkey: Hotkey address
             amount: Amount to stake
+            tolerance: Tolerance for stake
         """
         balance = self.subtensor.get_balance(
             address=self.delegator,
         )
+        print("--------------------------------")
+        print(f"Adding stake...")
+        print(f"Tolerance set to: {tolerance}")
         print(f"Current balance: {balance}")
         
         confirm = input(f"Do you really want to stake {amount}? (y/n)")
@@ -52,14 +57,34 @@ class RonProxy:
         else:
             return
         
+        subnet_info = self.subtensor.subnet(netuid)
+        if not subnet_info:
+            print(f"Subnet with netuid {netuid} does not exist")
+            return
+        
+        if subnet_info.is_dynamic:
+            rate = 1 / subnet_info.price.tao or 1
+            _rate_with_tolerance = rate * (
+                1 + tolerance
+            )  # Rate only for display
+            rate_with_tolerance = f"{_rate_with_tolerance:.4f}"
+            price_with_tolerance = subnet_info.price.rao * (
+                1 + tolerance
+            )
+        else:
+            rate_with_tolerance = "1"
+            price_with_tolerance = Balance.from_rao(1)
+        
         call = self.substrate.compose_call(
             call_module='SubtensorModule',
-            call_function='add_stake',
+            call_function='add_stake_limit',
             call_params={
-                'hotkey': hotkey,
-                'netuid': netuid,
-                'amount_staked': amount.rao,
-            }
+                "hotkey": hotkey,
+                "netuid": netuid,
+                "amount_staked": amount.rao,
+                "limit_price": price_with_tolerance,
+                "allow_partial": False,
+            },
         )
         is_success, error_message = self._do_proxy_call(call, 'Staking')
         if is_success:
@@ -69,7 +94,7 @@ class RonProxy:
 
 
     def remove_stake(self, netuid: int, hotkey: str, amount: Balance,
-                    all: bool = False) -> None:
+                    all: bool = False, tolerance: float = 0.05) -> None:
         """
         Remove stake from a subnet.
         
@@ -84,6 +109,9 @@ class RonProxy:
             hotkey_ss58=hotkey,
             netuid=netuid,
         )
+        print("--------------------------------")
+        print(f"Removing stake...")
+        print(f"Tolerance set to: {tolerance}")
         print(f"Current alpha balance: {balance}")
 
         if all:
@@ -103,13 +131,32 @@ class RonProxy:
             print(f"Error: Amount to unstake is greater than current balance")
             return
 
+        subnet_info = self.subtensor.subnet(netuid)
+        if not subnet_info:
+            print(f"Subnet with netuid {netuid} does not exist")
+            return
+        
+        if subnet_info.is_dynamic:
+            rate = subnet_info.price.tao or 1
+            rate_with_tolerance = rate * (
+                1 - tolerance
+            )  # Rate only for display
+            price_with_tolerance = subnet_info.price.rao * (
+                1 - tolerance
+            )  # Actual price to pass to extrinsic
+        else:
+            rate_with_tolerance = 1
+            price_with_tolerance = 1
+            
         call = self.substrate.compose_call(
             call_module='SubtensorModule',
-            call_function='remove_stake',
+            call_function='remove_stake_limit',
             call_params={
                 'hotkey': hotkey,
                 'netuid': netuid,
                 'amount_unstaked': amount.rao - 1,
+                "limit_price": price_with_tolerance,
+                "allow_partial": False,
             }
         )
         is_success, error_message = self._do_proxy_call(call, 'Staking')
@@ -220,7 +267,23 @@ class RonProxy:
             call=proxy_call,
             keypair=self.proxy_wallet.coldkey,
         )
-        receipt = self.substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        try:
+            receipt = self.substrate.submit_extrinsic(
+                extrinsic,
+                wait_for_inclusion=True,
+                wait_for_finalization=False,
+            )
+        except SubstrateRequestException as e:
+            error_message = e.message
+            if "Custom error: 8" in str(e):
+                error_message = f"""
+                    \n{failure_prelude}: Price exceeded tolerance limit.
+                    Transaction rejected because partial unstaking is disabled.
+                    Either increase price tolerance or enable partial unstaking.
+                """
+            return False, error_message
+        
+        print(f"Extrinsic: {receipt.get_extrinsic_identifier()}")
         
         is_success = receipt.is_success
         error_message = receipt.error_message
